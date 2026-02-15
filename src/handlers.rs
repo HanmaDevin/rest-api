@@ -5,7 +5,10 @@ use axum::{
 };
 use sqlx::PgPool;
 
-use crate::models::{User, UserPayload};
+use crate::{
+    models::{User, UserPayload},
+    utils::valid_email,
+};
 
 pub async fn list_users(State(pool): State<PgPool>) -> Result<Json<Vec<User>>, StatusCode> {
     sqlx::query_as::<_, User>("SELECT * FROM users")
@@ -19,7 +22,7 @@ pub async fn create_user(
     State(pool): State<PgPool>,
     Json(payload): Json<UserPayload>,
 ) -> Result<(StatusCode, Json<User>), StatusCode> {
-    if valid_payload(payload) {
+    if valid_email(payload.get_email()) {
         sqlx::query_as::<_, User>("INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *")
             .bind(payload.get_name())
             .bind(payload.get_email())
