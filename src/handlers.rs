@@ -44,15 +44,26 @@ pub async fn update_user(
     State(pool): State<PgPool>,
     Path(id): Path<i32>,
     Json(payload): Json<UserPayload>,
-) -> Result<Json<User>, StatusCode> {
-    sqlx::query_as::<_, User>("UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *")
+) -> Result<Json<User>, (StatusCode, String)> {
+    if valid_email(payload.get_email()) {
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *",
+        )
         .bind(payload.get_name())
         .bind(payload.get_email())
         .bind(id)
         .fetch_one(&pool)
         .await
         .map(Json)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Could not update user".to_string(),
+            )
+        })
+    } else {
+        Err((StatusCode::BAD_REQUEST, "Invalid email".to_string()))
+    }
 }
 
 pub async fn delete_user(
