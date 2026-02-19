@@ -21,7 +21,7 @@ pub async fn list_users(State(pool): State<PgPool>) -> Result<Json<Vec<User>>, S
 pub async fn create_user(
     State(pool): State<PgPool>,
     Json(payload): Json<UserPayload>,
-) -> Result<(StatusCode, Json<User>), StatusCode> {
+) -> Result<(StatusCode, Json<User>), (StatusCode, String)> {
     if valid_email(payload.get_email()) {
         sqlx::query_as::<_, User>("INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *")
             .bind(payload.get_name())
@@ -29,9 +29,14 @@ pub async fn create_user(
             .fetch_one(&pool)
             .await
             .map(|u| (StatusCode::CREATED, Json(u)))
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+            .map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Something went wrong".to_string(),
+                )
+            })
     } else {
-        Err(StatusCode::BAD_REQUEST)
+        Err((StatusCode::BAD_REQUEST, "Invalid email".to_string()))
     }
 }
 
